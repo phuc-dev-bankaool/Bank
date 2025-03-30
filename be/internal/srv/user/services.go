@@ -27,21 +27,21 @@ func (ins *AuthService) Register(ctx context.Context,
 	address, city, zipCode, idCardFront, idCardBack string) (
 	id string, err error) {
 
-	// Add validation
 	if username == "" || email == "" || password == "" {
 		return "", fmt.Errorf("username, email and password are required")
 	}
 
-	// Log the registration attempt
-	log.Printf("Attempting to register user: %s, email: %s\n", username, email)
-
-	// Check if username exists
-	_, err = ins.repo.GetUserByUsername(ctx, username)
+	existingUser, err := ins.repo.GetUserByUsername(ctx, username)
 	if err != nil {
-		if err != mongo.ErrNoDocuments {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+		} else {
+			log.Printf("Error checking existing username: %v\n", err)
 			return "", fmt.Errorf("error checking existing username: %v", err)
 		}
+	} else if existingUser != nil {
+		return "", fmt.Errorf("username already exists")
 	}
+
 	_, err = ins.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if err != mongo.ErrNoDocuments {
@@ -49,7 +49,6 @@ func (ins *AuthService) Register(ctx context.Context,
 		}
 	}
 
-	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", err
@@ -71,10 +70,6 @@ func (ins *AuthService) Register(ctx context.Context,
 		UpdatedAt:    time.Now(),
 	}
 
-	// Log the user object (remove sensitive data in production)
-	log.Printf("Creating user: %+v\n", user)
-
-	// Create user in database
 	id, err = ins.repo.CreateUser(ctx, user)
 	if err != nil {
 		log.Printf("Error creating user: %v\n", err)
@@ -83,8 +78,8 @@ func (ins *AuthService) Register(ctx context.Context,
 	return id, nil
 }
 
-func (ins *AuthService) Login(ctx context.Context, username, password string) (id string, err error) {
-	user, err := ins.repo.GetUserByUsername(ctx, username)
+func (ins *AuthService) Login(ctx context.Context, identifier, password string) (id string, err error) {
+	user, err := ins.repo.GetUserByUsername(ctx, identifier)
 	if err != nil {
 		return "", err
 	}

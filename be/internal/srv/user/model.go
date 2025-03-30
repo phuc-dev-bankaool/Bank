@@ -13,3 +13,8 @@ type RegisterRequest struct {
 	IDCardFront string `json:"idCardFront"`
 	IDCardBack  string `json:"idCardBack"`
 }
+
+type LoginRequest struct {
+	Identifier string `json:"identifier"`
+	Password   string `json:"password"`
+}
